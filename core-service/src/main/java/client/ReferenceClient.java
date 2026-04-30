@@ -85,6 +85,20 @@ public class ReferenceClient {
         }
     }
 
+    public String getMedicineName(String medicineId, String traceId) {
+        try {
+            MedicineIdRequest request = MedicineIdRequest.newBuilder()
+                    .setMedicineId(medicineId)
+                    .setTraceId(traceId)
+                    .build();
+            MedicineInfoResponse response = stub.getMedicineInfo(request);
+            return response.getName();
+        } catch (Exception e) {
+            logger.warning("[TraceID: " + traceId + "] Не удалось получить имя: " + e.getMessage());
+            return "Неизвестно";
+        }
+    }
+
     private boolean fallbackExists(String medicineId) {
         // Если Reference недоступен, проверяем по формату ID
         return medicineId != null && medicineId.matches("\\d+");

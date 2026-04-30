@@ -3,7 +3,6 @@ package ui;
 import exception.*;
 import model.BonusInfo;
 import model.Medicine;
-import model.PrescriptionType;
 import model.Sale;
 import service.BonusInterface;
 import service.PharmacyServiceInterface;
@@ -15,6 +14,7 @@ import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.List;
 import java.util.Scanner;
+import java.util.UUID;
 
 public class ConsoleUI {
 
@@ -77,8 +77,23 @@ public class ConsoleUI {
     private void viewMedicines() {
         System.out.println("\n  СПИСОК ЛЕКАРСТВ:");
         List<Medicine> medicines = service.getAllMedicines();
-        if (medicines.isEmpty()) System.out.println("Список пуст");
-        else medicines.forEach(System.out::println);
+
+        if (medicines.isEmpty()) {
+            System.out.println("Список пуст");
+            return;
+        }
+
+        String traceId = UUID.randomUUID().toString().substring(0, 8);
+
+        for (Medicine med : medicines) {
+            // Получаем имя через сервис
+            String name = service.getMedicineName(med.getMedicineId(), traceId);
+
+            String expired = med.isExpired() ? " (просрочено)" : "";
+            System.out.printf("ID: %s | %s | Цена: %.2f | Кол-во: %d | Годен до: %s%s%n",
+                    med.getId(), name, med.getPrice(), med.getQuantity(),
+                    med.getExpirationDate(), expired);
+        }
     }
 
     private void addMedicine() {
@@ -87,12 +102,15 @@ public class ConsoleUI {
         System.out.print("Название: ");
         String name = scanner.nextLine();
 
-        PrescriptionType prescriptionType = readPrescriptionType("Требуется рецепт? (да/нет): ");
+        boolean requiresPrescription = readYesNo("Требуется рецепт? (да/нет): ");
         int quantity = readInt("Количество: ");
         double price = readDouble("Цена (в рублях): ");
         LocalDate expirationDate = readDate("Годен до (дд.мм.гггг): ");
 
-        service.addMedicine(new Medicine(name, prescriptionType, expirationDate, quantity, price));
+        String medicineId = String.valueOf(System.currentTimeMillis());
+
+        Medicine medicine = new Medicine(medicineId, expirationDate, quantity, price);
+        service.addMedicine(medicine, name, requiresPrescription);
     }
 
     private void deleteMedicine() {
@@ -102,14 +120,39 @@ public class ConsoleUI {
         service.deleteMedicine(id);
     }
 
-    /*private void sellMedicine() {
-        viewMedicines();
-        System.out.print("Введите ID лекарства: ");
-        String id = scanner.nextLine();
-        int quantity = readInt("Введите количество: ");
-        boolean hasPrescription = readYesNo("Есть рецепт? (да/нет): ");
-        PricingStrategy strategy = chooseStrategy();
-        service.sellMedicine(id, quantity, hasPrescription, strategy);
+    /*public void sellMedicine(String medicineId, int quantity, boolean hasPrescription, PricingStrategy strategy) {
+        String traceId = generateTraceId();
+
+        // Проверка через Reference
+        boolean exists = referenceClient.checkMedicineExists(medicineId, traceId);
+        if (!exists) {
+            throw new MedicineNotFoundException("Лекарство не найдено в справочнике (ID: " + medicineId + ")");
+        }
+
+        boolean requiresPrescription = referenceClient.isPrescriptionRequired(medicineId, traceId);
+        if (requiresPrescription && !hasPrescription) {
+            throw new PrescriptionRequiredException("Нужен рецепт");
+        }
+
+        // Ищем лекарство по medicineId (а не по id партии!)
+        List<Medicine> medicines = medicineRepo.findAll();
+        Medicine med = medicines.stream()
+                .filter(m -> m.getMedicineId().equals(medicineId))
+                .findFirst()
+                .orElseThrow(() -> new MedicineNotFoundException("Нет в наличии лекарства с ID: " + medicineId));
+
+        if (med.isExpired()) {
+            notifyObservers(med, EventType.EXPIRED);
+            throw new ExpiredMedicineException("Препарат просрочен");
+        }
+
+        med.reduceQuantity(quantity);
+        double[] prices = strategy.calculatePrice(med, quantity);
+        Sale sale = new Sale(med, quantity, prices[0], prices[1]);
+        saleRepo.add(sale);
+        notifyObservers(med, EventType.SOLD);
+
+        System.out.println("[TraceID: " + traceId + "] Продажа выполнена успешно");
     }*/
 
     private void sellMedicineWithBonuses() {
@@ -285,19 +328,6 @@ public class ConsoleUI {
                 continue;
             }
             return phone;
-        }
-    }
-
-    private PrescriptionType readPrescriptionType(String prompt) {
-        while (true) {
-            System.out.print(prompt);
-            String input = scanner.nextLine().trim().toLowerCase();
-            if (input.equals("да")) {
-                return PrescriptionType.PRESCRIPTION;
-            } else if (input.equals("нет")) {
-                return PrescriptionType.WITHOUTPRESCRIPTION;
-            }
-            System.out.println("Введите 'да' или 'нет'");
         }
     }
 }

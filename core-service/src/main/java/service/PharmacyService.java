@@ -8,7 +8,7 @@ import observer.Observer;
 import repository.Repository;
 import repository.SaleRepository;
 import service.strategy.PricingStrategy;
-import client.ReferenceClient;  // НОВЫЙ ИМПОРТ
+import client.ReferenceClient;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -19,10 +19,8 @@ public class PharmacyService implements PharmacyServiceInterface {
     private Repository<Medicine, String> medicineRepo;
     private Repository<Sale, String> saleRepo;
     private List<Observer> observers = new ArrayList<>();
-    private ReferenceClient referenceClient;  // НОВОЕ
-    private String traceId;                   // НОВОЕ (можно генерировать при каждом вызове)
+    private ReferenceClient referenceClient;
 
-    // ИЗМЕНЁННЫЙ КОНСТРУКТОР
     public PharmacyService(Repository<Medicine, String> medicineRepo,
                            Repository<Sale, String> saleRepo,
                            ReferenceClient referenceClient) {
@@ -31,25 +29,48 @@ public class PharmacyService implements PharmacyServiceInterface {
         this.referenceClient = referenceClient;
     }
 
-    // ВСПОМОГАТЕЛЬНЫЙ МЕТОД ДЛЯ TRACE ID
     private String generateTraceId() {
         return UUID.randomUUID().toString().substring(0, 8);
     }
 
-    // ИЗМЕНЁННЫЙ addMedicine
-    public void addMedicine(Medicine medicine) {
+    // Получить имя из Reference
+    public String getMedicineName(String medicineId, String traceId) {
+        try {
+            return referenceClient.getMedicineName(medicineId, traceId);
+        } catch (Exception e) {
+            System.err.println("[TraceID: " + traceId + "] Не удалось получить имя: " + e.getMessage());
+            return "Неизвестно";
+        }
+    }
+
+    // Уведомление с именем
+    private void notifyObservers(Medicine medicine, EventType eventType, String medicineName) {
+        for (Observer observer : observers) {
+            observer.update(medicine, eventType, medicineName);
+        }
+    }
+
+    // Уведомление без имени (когда имени ещё нет — например, при добавлении)
+    private void notifyObservers(Medicine medicine, EventType eventType) {
+        String traceId = generateTraceId();
+        String medicineName = getMedicineName(medicine.getMedicineId(), traceId);
+        notifyObservers(medicine, eventType, medicineName);
+    }
+
+    public void addMedicine(Medicine medicine, String name, boolean requiresPrescription) {
+        String traceId = generateTraceId();
+
         if (medicine.isExpired()) {
             notifyObservers(medicine, EventType.EXPIRED);
             throw new ExpiredMedicineException("Препарат просрочен");
         }
 
-        // НОВОЕ: синхронизация с Reference Service
-        String traceId = generateTraceId();
+        // Синхронизация с Reference
         try {
             referenceClient.addMedicineToCatalogue(
                     medicine.getMedicineId(),
-                    medicine.getName(),
-                    medicine.isPrescriptionRequired(),
+                    name,
+                    requiresPrescription,
                     traceId
             );
             System.out.println("[TraceID: " + traceId + "] Синхронизировано со справочником");
@@ -58,70 +79,75 @@ public class PharmacyService implements PharmacyServiceInterface {
         }
 
         medicineRepo.add(medicine);
-        notifyObservers(medicine, EventType.ADDED);
+
+        // Уведомление с именем (имя уже знаем)
+        notifyObservers(medicine, EventType.ADDED, name);
     }
 
-    // ИЗМЕНЁННЫЙ deleteMedicine
     public void deleteMedicine(String id) {
+        String traceId = generateTraceId();
+
         Medicine medicine = medicineRepo.findById(id);
         if (medicine == null) throw new MedicineNotFoundException("Лекарство не найдено");
 
-        // НОВОЕ: удаление из справочника
-        String traceId = generateTraceId();
+        // Получаем имя перед удалением
+        String medicineName = getMedicineName(medicine.getMedicineId(), traceId);
+
         try {
-            referenceClient.removeMedicineFromCatalogue(id, traceId);
+            referenceClient.removeMedicineFromCatalogue(medicine.getMedicineId(), traceId);
         } catch (Exception e) {
             System.err.println("[TraceID: " + traceId + "] Не удалось удалить из справочника: " + e.getMessage());
         }
 
         medicineRepo.deleteById(id);
-        notifyObservers(medicine, EventType.REMOVED);
+
+        // Уведомление с именем
+        notifyObservers(medicine, EventType.REMOVED, medicineName);
     }
 
-    // ИЗМЕНЁННЫЙ sellMedicine
-    public void sellMedicine(String id, int quantity, boolean hasPrescription, PricingStrategy strategy) {
+    public void sellMedicine(String medicineId, int quantity, boolean hasPrescription, PricingStrategy strategy) {
         String traceId = generateTraceId();
 
-        // НОВОЕ: проверка через Reference Service
-        boolean exists = referenceClient.checkMedicineExists(id, traceId);
+        // Проверка через Reference
+        boolean exists = referenceClient.checkMedicineExists(medicineId, traceId);
         if (!exists) {
-            throw new MedicineNotFoundException("Лекарство не найдено в справочнике (ID: " + id + ")");
+            throw new MedicineNotFoundException("Лекарство не найдено в справочнике (ID: " + medicineId + ")");
         }
 
-        boolean requiresPrescription = referenceClient.isPrescriptionRequired(id, traceId);
+        boolean requiresPrescription = referenceClient.isPrescriptionRequired(medicineId, traceId);
         if (requiresPrescription && !hasPrescription) {
-            throw new PrescriptionRequiredException("Нужен рецепт для этого лекарства");
+            throw new PrescriptionRequiredException("Нужен рецепт");
         }
 
-        // СТАРАЯ ЛОГИКА (без изменений)
-        Medicine med = medicineRepo.findById(id);
-        if (med == null) throw new MedicineNotFoundException("Лекарство не найдено");
+        // Получаем имя для уведомления и Sale
+        String medicineName = getMedicineName(medicineId, traceId);
+
+        // Ищем партию на складе
+        List<Medicine> medicines = medicineRepo.findAll();
+        Medicine med = medicines.stream()
+                .filter(m -> m.getMedicineId().equals(medicineId))
+                .findFirst()
+                .orElseThrow(() -> new MedicineNotFoundException("Нет в наличии лекарства с ID: " + medicineId));
+
         if (med.isExpired()) {
-            notifyObservers(med, EventType.EXPIRED);
+            notifyObservers(med, EventType.EXPIRED, medicineName);
             throw new ExpiredMedicineException("Препарат просрочен");
         }
 
         med.reduceQuantity(quantity);
         double[] prices = strategy.calculatePrice(med, quantity);
-        double unitPrice = prices[0];
-        double totalPrice = prices[1];
 
-        Sale sale = new Sale(med, quantity, unitPrice, totalPrice);
+        Sale sale = new Sale(medicineName, quantity, prices[0], prices[1]);
         saleRepo.add(sale);
-        notifyObservers(med, EventType.SOLD);
+
+        // Уведомление с именем
+        notifyObservers(med, EventType.SOLD, medicineName);
 
         System.out.println("[TraceID: " + traceId + "] Продажа выполнена успешно");
     }
 
-    // ОСТАЛЬНЫЕ МЕТОДЫ БЕЗ ИЗМЕНЕНИЙ
     public void addObserver(Observer observer) {
         observers.add(observer);
-    }
-
-    private void notifyObservers(Medicine medicine, EventType eventType) {
-        for (Observer observer : observers) {
-            observer.update(medicine, eventType);
-        }
     }
 
     public List<Medicine> getAllMedicines() {

@@ -1,4 +1,4 @@
-package model;
+/*package model;
 
 public enum PrescriptionType {
     WITHOUTPRESCRIPTION("Без рецепта"),
@@ -17,4 +17,4 @@ public enum PrescriptionType {
     public boolean isPrescriptionRequired() {
         return this == PRESCRIPTION;
     }
-}
+}*/

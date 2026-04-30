@@ -25,7 +25,8 @@ public class ExpiredReport implements Report {
         } else {
             sb.append("\n");
             for (Medicine med : expired) {
-                sb.append(String.format("%s (ID: %s)\n", med.getName(), med.getId()));
+                // Показываем medicineId (ссылка на справочник) и id партии
+                sb.append(String.format("Лекарство ID: %s (партия: %s)\n", med.getMedicineId(), med.getId()));
             }
             sb.append(String.format("\nВСЕГО ПРОСРОЧЕНО: %d шт.\n", expired.size()));
         }

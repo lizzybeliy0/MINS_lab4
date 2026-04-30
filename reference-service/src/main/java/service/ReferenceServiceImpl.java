@@ -12,13 +12,16 @@ public class ReferenceServiceImpl extends ReferenceServiceGrpc.ReferenceServiceI
     private final Map<String, CatalogueEntry> catalogue = new ConcurrentHashMap<>();
 
     public ReferenceServiceImpl() {
-        // Инициализация начальными данными (синхронизация с Core после старта)
-        // Будет заполнено при добавлении лекарств из Core
+        catalogue.put("1", new CatalogueEntry("Парацетамол", false));
+        catalogue.put("2", new CatalogueEntry("Амоксициллин", true));
+        catalogue.put("3", new CatalogueEntry("Витаминки", false));
+        catalogue.put("4", new CatalogueEntry("Лекарство", false));
+        catalogue.put("5", new CatalogueEntry("Лечилка", false));
     }
 
     @Override
     public void checkMedicineExists(MedicineIdRequest request,
-                                    StreamObserver<ExistsResponse> responseObserver) {
+                                    StreamObserver<ExistsResponse> responseObserver) {//для асинх отправ отв
         String traceId = request.getTraceId();
         String id = request.getMedicineId();
 
@@ -47,6 +50,33 @@ public class ReferenceServiceImpl extends ReferenceServiceGrpc.ReferenceServiceI
                 .setRequiresPrescription(requires)
                 .setMedicineName(entry != null ? entry.name : "Неизвестно")
                 .build());
+        responseObserver.onCompleted();
+    }
+
+    @Override
+    public void getMedicineInfo(MedicineIdRequest request,
+                                StreamObserver<MedicineInfoResponse> responseObserver) {
+        String traceId = request.getTraceId();
+        String id = request.getMedicineId();
+
+        CatalogueEntry entry = catalogue.get(id);
+        boolean exists = entry != null;
+
+        MedicineInfoResponse.Builder builder = MedicineInfoResponse.newBuilder()
+                .setExists(exists);
+
+        if (exists) {
+            builder.setId(id)
+                    .setName(entry.name)
+                    .setRequiresPrescription(entry.requiresPrescription)
+                    .setMessage("OK");
+        } else {
+            builder.setMessage("Medicine not found");
+        }
+
+        logger.info(String.format("[TraceID: %s] getMedicineInfo(%s) = exists: %s", traceId, id, exists));
+
+        responseObserver.onNext(builder.build());
         responseObserver.onCompleted();
     }
 
