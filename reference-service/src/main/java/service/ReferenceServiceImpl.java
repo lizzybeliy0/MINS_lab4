@@ -72,6 +72,7 @@ public class ReferenceServiceImpl extends ReferenceServiceGrpc.ReferenceServiceI
                     .setMessage("OK");
         } else {
             builder.setMessage("Medicine not found");
+            logger.warning(String.format("[TraceID: %s] getMedicineInfo(%s) = exists: %s", traceId, id, exists));
         }
 
         logger.info(String.format("[TraceID: %s] getMedicineInfo(%s) = exists: %s", traceId, id, exists));

@@ -18,12 +18,10 @@ public class Main {
 
         DataInitializer.initMedicineRepository(medicineRepo);
 
-        // НОВОЕ: создаём gRPC клиента для Reference Service
         ReferenceClient referenceClient = new ReferenceClient("localhost", 50051);
 
         ReportFactory reportFactory = new ConsoleReportFactory();
 
-        // ИЗМЕНЁННЫЙ: передаём referenceClient в конструктор
         PharmacyServiceInterface service = new PharmacyService(medicineRepo, saleRepo, referenceClient);
 
         ReportServiceInterface<Sale> salesReportService = new SalesReportService(reportFactory);
@@ -37,7 +35,6 @@ public class Main {
 
         ConsoleUI ui = new ConsoleUI(service, salesReportService, expiredReportService, bonusGod);
 
-        // Добавляем shutdown hook для закрытия gRPC канала
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
             try {
                 referenceClient.shutdown();

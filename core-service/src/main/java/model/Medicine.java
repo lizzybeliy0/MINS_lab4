@@ -7,8 +7,8 @@ import java.time.format.DateTimeFormatter;
 
 public class Medicine {
     private static int counter = 1;
-    private String id;                  // ID партии (локальный)
-    private String medicineId;          // ссылка на Reference (ID из справочника)
+    private String id;
+    private String medicineId;
     private LocalDate expirationDate;
     private int quantity;
     private double price;
@@ -38,7 +38,6 @@ public class Medicine {
 
     @Override
     public String toString() {
-        // Имя будет добавляться извне (через сервис)
         String expired = isExpired() ? " (просрочено)" : "";
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd.MM.yyyy");
         return String.format("ID: %s | Ссылка: %s | Цена: %.2f | Кол-во: %d | Годен до: %s%s",

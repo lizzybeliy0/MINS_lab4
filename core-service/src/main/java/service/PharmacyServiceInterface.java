@@ -8,7 +8,7 @@ import service.strategy.PricingStrategy;
 import java.util.List;
 
 public interface PharmacyServiceInterface {
-    void addMedicine(Medicine medicine, String name, boolean requiresPrescription);  // ← изменён
+    void addMedicine(Medicine medicine, String name, boolean requiresPrescription);
     void deleteMedicine(String id);
     void sellMedicine(String id, int quantity, boolean hasPrescription, PricingStrategy strategy);
     List<Medicine> getAllMedicines();

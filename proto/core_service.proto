@@ -5,22 +5,37 @@ package pharmacy.core;
 option java_package = "pharmacy.proto";
 option java_multiple_files = true;
 
-// ====== СЕРВИС A (Core Service) ======
-// Предоставляет методы для Reference (если понадобится)
-
 service CoreService {
-  // Reference может запросить информацию о продажах (опционально)
-  rpc GetMedicineStockInfo (StockInfoRequest) returns (StockInfoResponse);
+  // Reference вызывает этот метод при старте, чтобы получить все лекарства
+  rpc GetAllMedicines (EmptyRequest) returns (GetAllMedicinesResponse);
+  // Для синх при добавлении (уведомление Reference)
+  //rpc NotifyMedicineAdded (MedicineAddedNotification) returns (EmptyResponse);
+  // Для синх при удалении
+  //rpc NotifyMedicineRemoved (MedicineRemovedNotification) returns (EmptyResponse);
 }
 
-message StockInfoRequest {
-  string medicine_id = 1;
+message EmptyRequest {}
+
+message EmptyResponse {}
+
+message MedicineAddedNotification {
+  string id = 1;
+  string name = 2;
+  bool requires_prescription = 3;
+  string trace_id = 4;
+}
+
+message MedicineRemovedNotification {
+  string id = 1;
   string trace_id = 2;
 }
 
-message StockInfoResponse {
-  bool exists = 1;
-  int32 total_quantity = 2;
-  double current_price = 3;
-  string message = 4;
+message MedicineInfo {
+  string id = 1;
+  string name = 2;
+  bool requires_prescription = 3;
+}
+
+message GetAllMedicinesResponse {
+  repeated MedicineInfo medicines = 1;
 }

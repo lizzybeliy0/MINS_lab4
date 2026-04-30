@@ -3,6 +3,7 @@ package client;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import pharmacy.proto.*;
+import exception.ReferenceUnavailableException;
 
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
@@ -25,37 +26,8 @@ public class ReferenceClient {
         channel.shutdown().awaitTermination(5, TimeUnit.SECONDS);
     }
 
-    public boolean checkMedicineExists(String medicineId, String traceId) {
-        try {
-            MedicineIdRequest request = MedicineIdRequest.newBuilder()
-                    .setMedicineId(medicineId)
-                    .setTraceId(traceId)
-                    .build();
-            ExistsResponse response = stub.checkMedicineExists(request);
-            return response.getExists();
-        } catch (Exception e) {
-            logger.warning("[TraceID: " + traceId + "] Reference Service недоступен: " + e.getMessage());
-            available = false;
-            return fallbackExists(medicineId);
-        }
-    }
-
-    public boolean isPrescriptionRequired(String medicineId, String traceId) {
-        try {
-            MedicineIdRequest request = MedicineIdRequest.newBuilder()
-                    .setMedicineId(medicineId)
-                    .setTraceId(traceId)
-                    .build();
-            PrescriptionResponse response = stub.isPrescriptionRequired(request);
-            return response.getRequiresPrescription();
-        } catch (Exception e) {
-            logger.warning("[TraceID: " + traceId + "] Reference Service недоступен: " + e.getMessage());
-            available = false;
-            return false;  // fallback: считаем что рецепт не нужен
-        }
-    }
-
-    public boolean addMedicineToCatalogue(String id, String name, boolean requiresPrescription, String traceId) {
+    public void addMedicineToCatalogue(String id, String name, boolean requiresPrescription, String traceId)
+            throws ReferenceUnavailableException {
         try {
             AddMedicineRequest request = AddMedicineRequest.newBuilder()
                     .setId(id)
@@ -64,43 +36,110 @@ public class ReferenceClient {
                     .setTraceId(traceId)
                     .build();
             AddMedicineResponse response = stub.addMedicineToCatalogue(request);
-            return response.getSuccess();
+            available = true;
+
+            if (response.getSuccess()) {
+                logger.info("[TraceID: " + traceId + "] Добавлено в справочник: " + name + " (ID: " + id + ")");
+            } else {
+                logger.warning("[TraceID: " + traceId + "] Не удалось добавить в справочник: " + name);
+            }
         } catch (Exception e) {
-            logger.warning("[TraceID: " + traceId + "] Не удалось синхронизировать: " + e.getMessage());
-            return false;
+            logger.severe("[TraceID: " + traceId + "] Reference Service недоступен (addMedicineToCatalogue)");
+            available = false;
+            throw new ReferenceUnavailableException(
+                    "Reference Service недоступен. Операция не выполнена. Пожалуйста, убедитесь, что Reference Service запущен.");
         }
     }
 
-    public boolean removeMedicineFromCatalogue(String id, String traceId) {
+    public void removeMedicineFromCatalogue(String id, String traceId)
+            throws ReferenceUnavailableException {
         try {
             MedicineIdRequest request = MedicineIdRequest.newBuilder()
                     .setMedicineId(id)
                     .setTraceId(traceId)
                     .build();
             RemoveResponse response = stub.removeMedicineFromCatalogue(request);
-            return response.getSuccess();
+            available = true;
+
+            if (response.getSuccess()) {
+                logger.info("[TraceID: " + traceId + "] Удалено из справочника: " + id);
+            } else {
+                logger.warning("[TraceID: " + traceId + "] Не найдено в справочнике: " + id);
+            }
         } catch (Exception e) {
-            logger.warning("[TraceID: " + traceId + "] Не удалось удалить из справочника: " + e.getMessage());
-            return false;
+            logger.severe("[TraceID: " + traceId + "] Reference Service недоступен.");
+            available = false;
+            throw new ReferenceUnavailableException(
+                    "Reference Service недоступен. Операция не выполнена. Пожалуйста, убедитесь, что Reference Service запущен.");
         }
     }
 
-    public String getMedicineName(String medicineId, String traceId) {
+    public boolean checkMedicineExists(String medicineId, String traceId)
+            throws ReferenceUnavailableException {
+        try {
+            MedicineIdRequest request = MedicineIdRequest.newBuilder()
+                    .setMedicineId(medicineId)
+                    .setTraceId(traceId)
+                    .build();
+            ExistsResponse response = stub.checkMedicineExists(request);
+            available = true;
+            logger.info("[TraceID: " + traceId + "] checkExists(" + medicineId + ") = " + response.getExists());
+            return response.getExists();
+        } catch (Exception e) {
+            logger.severe("[TraceID: " + traceId + "] Reference Service недоступен (checkMedicineExists)");
+            available = false;
+            throw new ReferenceUnavailableException(
+                    "Reference Service недоступен. Невозможно проверить существование лекарства. Пожалуйста, убедитесь, что Reference Service запущен.");
+        }
+    }
+
+
+    public boolean isPrescriptionRequired(String medicineId, String traceId)
+            throws ReferenceUnavailableException {
+        try {
+            MedicineIdRequest request = MedicineIdRequest.newBuilder()
+                    .setMedicineId(medicineId)
+                    .setTraceId(traceId)
+                    .build();
+            PrescriptionResponse response = stub.isPrescriptionRequired(request);
+            available = true;
+            logger.info("[TraceID: " + traceId + "] isPrescriptionRequired(" + medicineId + ") = " + response.getRequiresPrescription());
+            return response.getRequiresPrescription();
+        } catch (Exception e) {
+            logger.severe("[TraceID: " + traceId + "] Reference Service недоступен (isPrescriptionRequired)");
+            available = false;
+            throw new ReferenceUnavailableException(
+                    "Reference Service недоступен. Невозможно проверить необходимость рецепта. Пожалуйста, убедитесь, что Reference Service запущен.");
+        }
+    }
+
+    public String getMedicineName(String medicineId, String traceId)
+            throws ReferenceUnavailableException {
         try {
             MedicineIdRequest request = MedicineIdRequest.newBuilder()
                     .setMedicineId(medicineId)
                     .setTraceId(traceId)
                     .build();
             MedicineInfoResponse response = stub.getMedicineInfo(request);
+            available = true;
+            logger.info("[TraceID: " + traceId + "] getMedicineInfo(" + medicineId + ") = " + response.getName());
+
+            if (!response.getExists()) {
+                logger.warning("[TraceID: " + traceId + "] Лекарство не найдено в справочнике: " + medicineId);
+                throw new ReferenceUnavailableException("Лекарство с ID " + medicineId + " не найдено в справочнике.");
+            }
             return response.getName();
+        } catch (ReferenceUnavailableException e) {
+            throw e;
         } catch (Exception e) {
-            logger.warning("[TraceID: " + traceId + "] Не удалось получить имя: " + e.getMessage());
-            return "Неизвестно";
+            logger.severe("[TraceID: " + traceId + "] Reference Service недоступен (getMedicineName)");
+            available = false;
+            throw new ReferenceUnavailableException(
+                    "Reference Service недоступен. Невозможно получить имя лекарства. Пожалуйста, убедитесь, что Reference Service запущен.");
         }
     }
 
-    private boolean fallbackExists(String medicineId) {
-        // Если Reference недоступен, проверяем по формату ID
-        return medicineId != null && medicineId.matches("\\d+");
+    public boolean isAvailable() {
+        return available;
     }
 }

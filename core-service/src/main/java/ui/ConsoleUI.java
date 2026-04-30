@@ -84,15 +84,24 @@ public class ConsoleUI {
         }
 
         String traceId = UUID.randomUUID().toString().substring(0, 8);
+        boolean referenceUnavailable = false;
 
         for (Medicine med : medicines) {
-            // Получаем имя через сервис
             String name = service.getMedicineName(med.getMedicineId(), traceId);
+
+            if (name.equals("[Справочник недоступен]")) {
+                referenceUnavailable = true;
+            }
 
             String expired = med.isExpired() ? " (просрочено)" : "";
             System.out.printf("ID: %s | %s | Цена: %.2f | Кол-во: %d | Годен до: %s%s%n",
                     med.getId(), name, med.getPrice(), med.getQuantity(),
                     med.getExpirationDate(), expired);
+        }
+
+        if (referenceUnavailable) {
+            System.out.println("\nВНИМАНИЕ: Справочная информация недоступна (Reference Service не отвечает)");
+            System.out.println("Отображаются только локальные данные. Проверьте запущен ли Reference Service.");
         }
     }
 
