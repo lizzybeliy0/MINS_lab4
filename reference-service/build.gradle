@@ -1,0 +1,14 @@
+plugins {
+    id 'application'
+}
+
+application {
+    mainClass = 'ReferenceApplication'
+    applicationDefaultJvmArgs = ['-Dfile.encoding=UTF-8']
+}
+
+tasks.register('runReference', JavaExec) {
+    mainClass = 'ReferenceApplication'
+    classpath = sourceSets.main.runtimeClasspath
+    jvmArgs = ['-Dfile.encoding=UTF-8']
+}

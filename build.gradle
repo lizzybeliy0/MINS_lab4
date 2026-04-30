@@ -1,0 +1,85 @@
+plugins {
+    id 'java'
+    id 'com.google.protobuf' version '0.9.4' apply false
+}
+
+allprojects {
+    group = 'org.example'
+    version = '1.0-SNAPSHOT'
+
+    repositories {
+        mavenCentral()
+    }
+}
+
+subprojects {
+    // Сначала применяем плагины
+    apply plugin: 'java'
+    apply plugin: 'com.google.protobuf'
+
+    // Потом устанавливаем Java-совместимость (после применения плагина)
+    java {
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
+    }
+
+    tasks.withType(JavaCompile) {
+        options.encoding = 'UTF-8'
+    }
+
+    tasks.withType(JavaExec) {
+        jvmArgs = ['-Dfile.encoding=UTF-8']
+    }
+
+    dependencies {
+        // gRPC и Protobuf для всех модулей
+        implementation 'io.grpc:grpc-netty-shaded:1.59.0'
+        implementation 'io.grpc:grpc-stub:1.59.0'
+        implementation 'io.grpc:grpc-protobuf:1.59.0'
+        implementation 'com.google.protobuf:protobuf-java:3.25.0'
+
+        // Логирование
+        implementation 'org.slf4j:slf4j-simple:2.0.9'
+
+        // Аннотации
+        implementation 'javax.annotation:javax.annotation-api:1.3.2'
+
+        // Тесты
+        testImplementation platform('org.junit:junit-bom:5.10.0')
+        testImplementation 'org.junit.jupiter:junit-jupiter'
+        testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+    }
+
+    test {
+        useJUnitPlatform()
+    }
+
+    // Настройка protobuf для каждого модуля
+    protobuf {
+        protoc {
+            artifact = 'com.google.protobuf:protoc:3.25.0'
+        }
+        plugins {
+            grpc {
+                artifact = 'io.grpc:protoc-gen-grpc-java:1.59.0'
+            }
+        }
+        generateProtoTasks {
+            all()*.plugins {
+                grpc {}
+            }
+        }
+    }
+
+    // Указываем, что proto-файлы лежат в общей папке
+    sourceSets {
+        main {
+            proto {
+                srcDir '../proto'
+            }
+            java {
+                srcDirs 'src/main/java'
+            }
+        }
+    }
+}

@@ -1,0 +1,72 @@
+syntax = "proto3";
+
+package pharmacy.reference;
+
+option java_package = "pharmacy.proto";
+option java_multiple_files = true;
+
+// ====== СЕРВИС B (Reference Service) ======
+// Предоставляет справочную информацию: id → name, prescriptionType
+
+service ReferenceService {
+  // ----- Для чтения (вызовы из Core) -----
+
+  // Проверить, существует ли лекарство в справочнике
+  rpc CheckMedicineExists (MedicineIdRequest) returns (ExistsResponse);
+
+  // Узнать, нужен ли рецепт
+  rpc IsPrescriptionRequired (MedicineIdRequest) returns (PrescriptionResponse);
+
+  // Получить полную информацию о лекарстве
+  rpc GetMedicineInfo (MedicineIdRequest) returns (MedicineInfoResponse);
+
+  // ----- Для записи (синхронизация из Core) -----
+
+  // Добавить новое лекарство в справочник (вызывается из Core при добавлении)
+  rpc AddMedicineToCatalogue (AddMedicineRequest) returns (AddMedicineResponse);
+
+  // Удалить лекарство из справочника
+  rpc RemoveMedicineFromCatalogue (MedicineIdRequest) returns (RemoveResponse);
+}
+
+// ====== СООБЩЕНИЯ (MESSAGES) ======
+
+message MedicineIdRequest {
+  string medicine_id = 1;
+  string trace_id = 2;  // для отслеживания запросов
+}
+
+message ExistsResponse {
+  bool exists = 1;
+  string message = 2;
+}
+
+message PrescriptionResponse {
+  bool requires_prescription = 1;
+  string medicine_name = 2;
+}
+
+message MedicineInfoResponse {
+  bool exists = 1;
+  string id = 2;
+  string name = 3;
+  bool requires_prescription = 4;
+  string message = 5;
+}
+
+message AddMedicineRequest {
+  string id = 1;           // ID, который сгенерировал Core
+  string name = 2;
+  bool requires_prescription = 3;
+  string trace_id = 4;
+}
+
+message AddMedicineResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message RemoveResponse {
+  bool success = 1;
+  string message = 2;
+}

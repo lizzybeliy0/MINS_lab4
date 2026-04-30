@@ -1,0 +1,14 @@
+plugins {
+    id 'application'
+}
+
+application {
+    mainClass = 'Main'
+}
+
+tasks.register('runCore', JavaExec) {
+    mainClass = 'Main'
+    classpath = sourceSets.main.runtimeClasspath
+    standardInput = System.in
+    systemProperty 'java.util.logging.SimpleFormatter.format', '%4$s: %5$s%n'
+}
