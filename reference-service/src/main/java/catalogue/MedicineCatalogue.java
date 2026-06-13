@@ -1,4 +1,4 @@
-package pharmacy.reference.catalogue;
+package catalogue;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -9,8 +9,6 @@ public class MedicineCatalogue {
     private final Map<String, MedicineInfo> catalogue = new ConcurrentHashMap<>();
 
     private MedicineCatalogue() {
-        // Инициализация начальными данными (синхронизация с Core позже)
-        // Пока заглушка, позже будет синхронизироваться с Core
         catalogue.put("1", new MedicineInfo("Парацетамол", false));
         catalogue.put("2", new MedicineInfo("Амоксициллин", true));
         catalogue.put("3", new MedicineInfo("Витаминки", false));

@@ -1,4 +1,3 @@
-// service/ServiceResult.java
 package service;
 
 public class ServiceResult<T> {

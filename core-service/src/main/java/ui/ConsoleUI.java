@@ -55,7 +55,6 @@ public class ConsoleUI {
                     case 1 -> viewMedicines();
                     case 2 -> addMedicine();
                     case 3 -> deleteMedicine();
-                    //case 4 -> sellMedicine();
                     case 4 -> sellMedicineWithBonuses();
                     case 5 -> viewSales();
                     case 6 -> printSalesReport();
@@ -129,40 +128,6 @@ public class ConsoleUI {
         service.deleteMedicine(id);
     }
 
-    /*public void sellMedicine(String medicineId, int quantity, boolean hasPrescription, PricingStrategy strategy) {
-        String traceId = generateTraceId();
-
-        // Проверка через Reference
-        boolean exists = referenceClient.checkMedicineExists(medicineId, traceId);
-        if (!exists) {
-            throw new MedicineNotFoundException("Лекарство не найдено в справочнике (ID: " + medicineId + ")");
-        }
-
-        boolean requiresPrescription = referenceClient.isPrescriptionRequired(medicineId, traceId);
-        if (requiresPrescription && !hasPrescription) {
-            throw new PrescriptionRequiredException("Нужен рецепт");
-        }
-
-        // Ищем лекарство по medicineId (а не по id партии!)
-        List<Medicine> medicines = medicineRepo.findAll();
-        Medicine med = medicines.stream()
-                .filter(m -> m.getMedicineId().equals(medicineId))
-                .findFirst()
-                .orElseThrow(() -> new MedicineNotFoundException("Нет в наличии лекарства с ID: " + medicineId));
-
-        if (med.isExpired()) {
-            notifyObservers(med, EventType.EXPIRED);
-            throw new ExpiredMedicineException("Препарат просрочен");
-        }
-
-        med.reduceQuantity(quantity);
-        double[] prices = strategy.calculatePrice(med, quantity);
-        Sale sale = new Sale(med, quantity, prices[0], prices[1]);
-        saleRepo.add(sale);
-        notifyObservers(med, EventType.SOLD);
-
-        System.out.println("[TraceID: " + traceId + "] Продажа выполнена успешно");
-    }*/
 
     private void sellMedicineWithBonuses() {
         viewMedicines();

@@ -65,7 +65,6 @@ public class PharmacyService implements PharmacyServiceInterface {
         String traceId = generateTraceId();
 
         if (medicine.isExpired()) {
-            //logger.warning("[TraceID: " + traceId + "] Попытка добавить просроченный препарат: " + name);
             notifyObservers(medicine, EventType.EXPIRED);
             throw new ExpiredMedicineException("Препарат просрочен");
         }
@@ -78,7 +77,6 @@ public class PharmacyService implements PharmacyServiceInterface {
         );
 
         medicineRepo.add(medicine);
-        //logger.info("[TraceID: " + traceId + "] Лекарство добавлено: " + name + " (партия: " + medicine.getId() + ")");
         notifyObservers(medicine, EventType.ADDED, name);
     }
 
@@ -93,7 +91,6 @@ public class PharmacyService implements PharmacyServiceInterface {
         }
 
         String medicineName = getMedicineName(medicine.getMedicineId(), traceId);
-        //logger.info("[TraceID: " + traceId + "] Удаление лекарства: " + medicineName);
 
         referenceClient.removeMedicineFromCatalogue(medicine.getMedicineId(), traceId);
         medicineRepo.deleteById(id);
@@ -107,13 +104,11 @@ public class PharmacyService implements PharmacyServiceInterface {
 
         boolean exists = referenceClient.checkMedicineExists(medicineId, traceId);
         if (!exists) {
-            //logger.warning("[TraceID: " + traceId + "] Лекарство не найдено в справочнике: " + medicineId);
             throw new MedicineNotFoundException("Лекарство не найдено в справочнике (ID: " + medicineId + ")");
         }
 
         boolean requiresPrescription = referenceClient.isPrescriptionRequired(medicineId, traceId);
         if (requiresPrescription && !hasPrescription) {
-            //logger.warning("[TraceID: " + traceId + "] Продажа без рецепта: " + medicineId);
             throw new PrescriptionRequiredException("Нужен рецепт");
         }
 
@@ -126,7 +121,6 @@ public class PharmacyService implements PharmacyServiceInterface {
                 .orElseThrow(() -> new MedicineNotFoundException("Нет в наличии лекарства с ID: " + medicineId));
 
         if (med.isExpired()) {
-            //logger.warning("[TraceID: " + traceId + "] Попытка продать просроченный препарат: " + medicineName);
             notifyObservers(med, EventType.EXPIRED, medicineName);
             throw new ExpiredMedicineException("Препарат просрочен");
         }
